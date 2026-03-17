@@ -2,19 +2,30 @@ pipeline {
     agent any
     
     options {
-        ansiColor('xterm')
+        ansiColor('xterm') // Enables colored output for better readability
+        timestamps() // Adds timestamps to the logs for easier debugging
+    }
+
+    environment {
+        NODE_VERSION = '22-alpine' // Centralized Node.js version for consistency
     }
 
     stages {
         stage('build') {
             agent {
                 docker {
-                    image 'node:22-alpine'
+                    image "node:${NODE_VERSION}" // Dynamically use the specified Node.js version
                 }
             }
             steps {
-                sh 'npm ci'
-                sh 'npm run build'
+                script {
+                    try {
+                        sh 'npm ci'
+                        sh 'npm run build'
+                    } catch (Exception e) {
+                        error("Build failed: ${e.message}")
+                    }
+                }
             }
         }
 
@@ -23,13 +34,19 @@ pipeline {
                 stage('unit tests') {
                     agent {
                         docker {
-                            image 'node:22-alpine'
-                            reuseNode true
+                            image "node:${NODE_VERSION}"
+                            reuseNode true // Ensures the same container is reused for efficiency
                         }
                     }
                     steps {
-                        // Unit tests with Vitest
-                        sh 'npx vitest run --reporter=verbose'
+                        script {
+                            try {
+                                // Unit tests with Vitest
+                                sh 'npx vitest run --reporter=verbose'
+                            } catch (Exception e) {
+                                error("Unit tests failed: ${e.message}")
+                            }
+                        }
                     }
                 }
             }
@@ -38,13 +55,31 @@ pipeline {
         stage('deploy') {
             agent {
                 docker {
-                    image 'alpine'
+                    image 'alpine' // Lightweight image for deployment
                 }
             }
             steps {
-                // Mock deployment which does nothing
-                echo 'Mock deployment was successful!'
+                script {
+                    try {
+                        // Mock deployment which does nothing
+                        echo 'Mock deployment was successful!'
+                    } catch (Exception e) {
+                        error("Deployment failed: ${e.message}")
+                    }
+                }
             }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline execution completed.'
+        }
+        success {
+            echo 'Pipeline executed successfully!'
+        }
+        failure {
+            echo 'Pipeline execution failed!'
         }
     }
 }
