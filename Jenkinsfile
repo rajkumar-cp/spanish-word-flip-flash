@@ -7,22 +7,26 @@ pipeline {
     }
 
     environment {
-        NODE_VERSION = '22' // Switch to non-Alpine Node.js version
+        NODE_VERSION = '22' // Use non-Alpine Node.js version
+        NPM_REGISTRY = 'https://registry.npmjs.org' // Default npm registry
     }
 
     stages {
         stage('build') {
             agent {
                 docker {
-                    image "node:${NODE_VERSION}" // Use non-Alpine Node.js image
-                    args "-v ${WORKSPACE}:/workspace" // Explicit volume mapping
+                    image "node:${NODE_VERSION}" // Use full Node.js image
+                    args "--dns 8.8.8.8 --dns 8.8.4.4 --network host" // Use host network and reliable DNS
                 }
             }
             steps {
                 script {
                     try {
+                        echo 'Configuring npm registry...'
+                        sh "npm config set registry ${NPM_REGISTRY}" // Use default npm registry
                         echo 'Installing dependencies...'
-                        sh 'npm ci --verbose' // Add verbose logging
+                        sh 'npm cache clean --force' // Clear npm cache
+                        sh 'npm ci --verbose --retry=3' // Retry npm install
                         echo 'Building the project...'
                         sh 'npm run build'
                     } catch (Exception e) {
@@ -39,7 +43,7 @@ pipeline {
                         docker {
                             image "node:${NODE_VERSION}"
                             reuseNode true
-                            args "-v ${WORKSPACE}:/workspace"
+                            args "--dns 8.8.8.8 --dns 8.8.4.4 --network host"
                         }
                     }
                     steps {
@@ -60,7 +64,7 @@ pipeline {
             agent {
                 docker {
                     image 'alpine' // Lightweight image for deployment
-                    args "-v ${WORKSPACE}:/workspace"
+                    args "--dns 8.8.8.8 --dns 8.8.4.4 --network host"
                 }
             }
             steps {
