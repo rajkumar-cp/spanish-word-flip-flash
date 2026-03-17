@@ -8,7 +8,6 @@ pipeline {
 
     environment {
         NODE_VERSION = '22' // Use non-Alpine Node.js version
-        NPM_REGISTRY = 'https://registry.npmjs.org' // Default npm registry
     }
 
     stages {
@@ -16,17 +15,17 @@ pipeline {
             agent {
                 docker {
                     image "node:${NODE_VERSION}" // Use full Node.js image
-                    args "--dns 8.8.8.8 --dns 8.8.4.4 --network host" // Use host network and reliable DNS
+                    args "-v ${WORKSPACE}:/workspace:rw" // Ensure workspace is writable
                 }
             }
             steps {
                 script {
                     try {
-                        echo 'Configuring npm registry...'
-                        sh "npm config set registry ${NPM_REGISTRY}" // Use default npm registry
+                        echo 'Cleaning workspace...'
+                        cleanWs() // Clean Jenkins workspace
                         echo 'Installing dependencies...'
                         sh 'npm cache clean --force' // Clear npm cache
-                        sh 'npm ci --verbose --retry=3' // Retry npm install
+                        sh 'npm ci --verbose' // Add verbose logging
                         echo 'Building the project...'
                         sh 'npm run build'
                     } catch (Exception e) {
@@ -43,7 +42,7 @@ pipeline {
                         docker {
                             image "node:${NODE_VERSION}"
                             reuseNode true
-                            args "--dns 8.8.8.8 --dns 8.8.4.4 --network host"
+                            args "-v ${WORKSPACE}:/workspace:rw"
                         }
                     }
                     steps {
@@ -64,7 +63,7 @@ pipeline {
             agent {
                 docker {
                     image 'alpine' // Lightweight image for deployment
-                    args "--dns 8.8.8.8 --dns 8.8.4.4 --network host"
+                    args "-v ${WORKSPACE}:/workspace:rw"
                 }
             }
             steps {
