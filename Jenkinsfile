@@ -7,14 +7,14 @@ pipeline {
     }
 
     environment {
-        NODE_VERSION = '22' // Use non-Alpine Node.js version
+        NODE_VERSION = '22' // Node.js version
     }
 
     stages {
         stage('build') {
             agent {
                 docker {
-                    image "ubuntu:22.04" // Use full Node.js image
+                    image "ubuntu:22.04" // Use Ubuntu image
                     args "-v ${WORKSPACE}:/workspace:rw" // Ensure workspace is writable
                 }
             }
@@ -23,9 +23,21 @@ pipeline {
                     try {
                         echo 'Cleaning workspace...'
                         cleanWs() // Clean Jenkins workspace
+
+                        echo 'Installing Node.js and npm...'
+                        sh '''
+                        apt-get update
+                        apt-get install -y curl
+                        curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
+                        apt-get install -y nodejs
+                        node -v
+                        npm -v
+                        '''
+
                         echo 'Installing dependencies...'
                         sh 'npm cache clean --force' // Clear npm cache
                         sh 'npm ci --verbose' // Add verbose logging
+
                         echo 'Building the project...'
                         sh 'npm run build'
                     } catch (Exception e) {
@@ -40,7 +52,7 @@ pipeline {
                 stage('unit tests') {
                     agent {
                         docker {
-                            image "node:${NODE_VERSION}"
+                            image "ubuntu:22.04"
                             reuseNode true
                             args "-v ${WORKSPACE}:/workspace:rw"
                         }
@@ -48,6 +60,16 @@ pipeline {
                     steps {
                         script {
                             try {
+                                echo 'Installing Node.js and npm for testing...'
+                                sh '''
+                                apt-get update
+                                apt-get install -y curl
+                                curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
+                                apt-get install -y nodejs
+                                node -v
+                                npm -v
+                                '''
+
                                 echo 'Running unit tests...'
                                 sh 'npx vitest run --reporter=verbose'
                             } catch (Exception e) {
