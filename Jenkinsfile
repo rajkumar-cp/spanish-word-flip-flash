@@ -14,7 +14,7 @@ pipeline {
         stage('build') {
             agent {
                 docker {
-                    image "node:${NODE_VERSION}" // Use full Node.js image
+                    image "ubuntu:22.04" // Use full Node.js image
                     args "-v ${WORKSPACE}:/workspace:rw" // Ensure workspace is writable
                 }
             }
